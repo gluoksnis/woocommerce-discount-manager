@@ -52,18 +52,55 @@ class WCDM_Discounts_Delete {
         $csv = array_map('str_getcsv', file($_FILES['csv_clear']['tmp_name']));
         $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
 
+        // Collect product IDs
+        $product_ids = array();
+        
         foreach ($csv as $row) {
-            $product_id = wc_get_product_id_by_sku(trim($row[0]));
+            $sku = trim($row[0]);
+            if (empty($sku)) {
+                continue;
+            }
+            
+            $product_id = wc_get_product_id_by_sku($sku);
+            
             if ($product_id) {
-                self::clear_discount_fields($product_id);
+                // Get original product ID if WPML is active
+                if (class_exists('WCDM_WPML_Helper')) {
+                    $product_id = WCDM_WPML_Helper::get_original_product_id($product_id);
+                }
+                $product_ids[] = $product_id;
             }
         }
+
+        if (empty($product_ids)) {
+            echo '<span class="alert alert-warning">' . 
+                 __('No valid products found in CSV.', 'wc-discount-manager') . '</span>';
+            return;
+        }
+
+        // Show batch processing info
+        if (class_exists('WCDM_Batch_Processor')) {
+            echo WCDM_Batch_Processor::get_batch_info_message(count($product_ids));
+        }
+
+        // Process using batch processor
+        $result = WCDM_Batch_Processor::process_batch($product_ids, 'clear_discount');
 
         if ($purge_cache && function_exists('flush_cloudflare_cache')) {
             flush_cloudflare_cache();
         }
         
-        echo '<span class="alert alert-success">' . __('Discounts cleared for uploaded SKUs!', 'wc-discount-manager') . '</span>';
+        $success_msg = sprintf(
+            __('Discounts cleared for %d products!', 'wc-discount-manager'),
+            $result['processed']
+        );
+        
+        // Add WPML info if active
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $success_msg .= ' ' . __('(Cleared from all language versions)', 'wc-discount-manager');
+        }
+        
+        echo '<span class="alert alert-success">' . $success_msg . '</span>';
     }
 
     /**
@@ -109,6 +146,7 @@ class WCDM_Discounts_Delete {
         $args = array(
             'post_type' => 'product',
             'posts_per_page' => -1,
+            'fields' => 'ids',
             'tax_query' => array(
                 array(
                     'taxonomy' => 'product_cat',
@@ -119,19 +157,47 @@ class WCDM_Discounts_Delete {
         );
         
         $query = new WP_Query($args);
-        if ($query->have_posts()) {
-            while ($query->have_posts()) {
-                $query->the_post();
-                self::clear_discount_fields(get_the_ID());
-            }
-            wp_reset_postdata();
+        $product_ids = $query->posts;
+
+        if (empty($product_ids)) {
+            echo '<span class="alert alert-warning">' . 
+                 __('No products found in selected category.', 'wc-discount-manager') . '</span>';
+            return;
         }
+
+        // Remove duplicates and get original language products for WPML
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $unique_ids = array();
+            foreach ($product_ids as $id) {
+                $original_id = WCDM_WPML_Helper::get_original_product_id($id);
+                $unique_ids[$original_id] = $original_id;
+            }
+            $product_ids = array_values($unique_ids);
+        }
+
+        // Show batch processing info
+        if (class_exists('WCDM_Batch_Processor')) {
+            echo WCDM_Batch_Processor::get_batch_info_message(count($product_ids));
+        }
+
+        // Process using batch processor
+        $result = WCDM_Batch_Processor::process_batch($product_ids, 'clear_discount');
 
         if ($purge_cache && function_exists('flush_cloudflare_cache')) {
             flush_cloudflare_cache();
         }
         
-        echo '<span class="alert alert-success">' . __('Discounts cleared for selected category!', 'wc-discount-manager') . '</span>';
+        $success_msg = sprintf(
+            __('Discounts cleared for %d products in selected category!', 'wc-discount-manager'),
+            $result['processed']
+        );
+        
+        // Add WPML info if active
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $success_msg .= ' ' . __('(Cleared from all language versions)', 'wc-discount-manager');
+        }
+        
+        echo '<span class="alert alert-success">' . $success_msg . '</span>';
     }
 
     /**

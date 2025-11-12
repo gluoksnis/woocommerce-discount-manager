@@ -1,0 +1,23 @@
+.
+|____.github
+| |____workflows
+| | |____release.yml
+|____.gitignore
+|____CHANGELOG.md
+|____CONTRIBUTING.md
+|____INSTALL.md
+|____LICENSE
+|____README.md
+|____STRUCTURE.txt
+|____assets
+| |____css
+| | |____admin-style.css
+| |____js
+| | |____admin-script.js
+|____includes
+| |____class-discounts-add.php
+| |____class-discounts-delete.php
+| |____class-discounts-list-table.php
+| |____class-sku-tag-assignment.php
+|____sample-sku.csv
+|____woocommerce-discount-manager.php

@@ -3,8 +3,8 @@
  * Plugin Name: WooCommerce Discount Manager
  * Plugin URI: https://github.com/gluoksnis/woocommerce-discount-manager
  * Description: Manage WooCommerce product discounts via CSV upload or category selection with bulk operations support
- * Version: 1.0.0
- * Author: Nord Ads, MB
+ * Version: 1.1.0
+ * Author: Vytautas Gluoksnis, SOUR advertising
  * Author URI: https://sour.lt
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('WC_DISCOUNT_MANAGER_VERSION', '1.0.0');
+define('WC_DISCOUNT_MANAGER_VERSION', '1.1.0');
 define('WC_DISCOUNT_MANAGER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WC_DISCOUNT_MANAGER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WC_DISCOUNT_MANAGER_PLUGIN_FILE', __FILE__);
@@ -86,6 +86,8 @@ class WC_Discount_Manager {
      * Include required files
      */
     private function includes() {
+        require_once WC_DISCOUNT_MANAGER_PLUGIN_DIR . 'includes/class-wpml-helper.php';
+        require_once WC_DISCOUNT_MANAGER_PLUGIN_DIR . 'includes/class-batch-processor.php';
         require_once WC_DISCOUNT_MANAGER_PLUGIN_DIR . 'includes/class-discounts-add.php';
         require_once WC_DISCOUNT_MANAGER_PLUGIN_DIR . 'includes/class-discounts-delete.php';
         require_once WC_DISCOUNT_MANAGER_PLUGIN_DIR . 'includes/class-discounts-list-table.php';

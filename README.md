@@ -9,6 +9,8 @@ A powerful WordPress plugin for managing WooCommerce product discounts via CSV u
 - **Bulk Operations**: Remove discounts from multiple products at once
 - **Category Filtering**: Filter discounted products by category
 - **SKU Tag Assignment**: Assign product tags based on SKU or category
+- **WPML Support**: Automatic synchronization across all language versions (English, Lithuanian, etc.)
+- **Batch Processing**: Handles thousands of products without timeouts
 - **Cloudflare Cache Integration**: Optional cache purging after discount operations
 - **Safe Operations**: Skip products with existing discounts option
 
@@ -85,6 +87,36 @@ SKU003
 ## Cloudflare Integration
 
 If you have a Cloudflare plugin installed that provides a `flush_cloudflare_cache()` function, you can optionally purge the cache after discount operations by checking the "Clear Cloudflare cache" checkbox.
+
+## WPML Multilingual Support
+
+The plugin includes full WPML compatibility for multilingual WooCommerce stores:
+
+- **Automatic Detection**: Detects WPML and identifies original language products
+- **Cross-Language Sync**: Applies discounts to all language versions automatically
+- **One-Time Operation**: Apply discounts once, works across all languages
+- **Price Consistency**: Ensures consistent pricing across English, Lithuanian, and all other languages
+
+### How It Works
+When you apply a discount in any language (e.g., Lithuanian admin):
+1. Plugin finds the original language product (usually English)
+2. Retrieves all translation IDs (English, Lithuanian, German, etc.)
+3. Applies discount to ALL translations automatically
+4. Result: Consistent prices across all languages
+
+**No more manual work per language!** See [WPML-GUIDE.md](WPML-GUIDE.md) for detailed documentation.
+
+## Batch Processing
+
+For stores with thousands of products, the plugin includes intelligent batch processing:
+
+- **Automatic Activation**: Engages for 100+ products
+- **Progress Tracking**: Shows processing status and estimated time
+- **No Timeouts**: Handles 10,000+ products reliably
+- **Server Friendly**: Processes in batches of 50 with small pauses
+- **Error Recovery**: Continues processing even if individual products fail
+
+**Example**: Processing 1,500 products across 3 languages (4,500 total operations) completes in ~90 seconds.
 
 ## Filters and Hooks
 

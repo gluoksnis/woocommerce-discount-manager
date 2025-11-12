@@ -55,27 +55,79 @@ class WCDM_Discounts_Add {
         $end_date = sanitize_text_field($_POST['end_date']);
         $skip_existing_discounts = isset($_POST['skip_discounted']) && $_POST['skip_discounted'] == 'on';
         $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
+        
+        // Collect product IDs
+        $product_ids = array();
         $skipped_skus = array();
 
         foreach ($csv as $row) {
-            $discountApplied = self::update_price_by_sku(trim($row[0]), $discount, $start_date, $end_date, $skip_existing_discounts);
-
-            if (!$discountApplied) {
-                $skipped_skus[] = trim($row[0]);
+            $sku = trim($row[0]);
+            if (empty($sku)) {
+                continue;
+            }
+            
+            $product_id = wc_get_product_id_by_sku($sku);
+            
+            if ($product_id) {
+                // Get original product ID if WPML is active
+                if (class_exists('WCDM_WPML_Helper')) {
+                    $product_id = WCDM_WPML_Helper::get_original_product_id($product_id);
+                }
+                $product_ids[] = $product_id;
+            } else {
+                $skipped_skus[] = $sku;
             }
         }
 
+        if (empty($product_ids)) {
+            echo '<span class="alert alert-warning">' . 
+                 __('No valid products found in CSV.', 'wc-discount-manager') . '</span>';
+            return;
+        }
+
+        // Show batch processing info if needed
+        if (class_exists('WCDM_Batch_Processor')) {
+            echo WCDM_Batch_Processor::get_batch_info_message(count($product_ids));
+        }
+
+        // Process products using batch processor
+        $params = array(
+            'discount' => $discount,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'skip_existing_discounts' => $skip_existing_discounts
+        );
+
+        $result = WCDM_Batch_Processor::process_batch($product_ids, 'apply_discount', $params);
+
+        // Show results
         if (!empty($skipped_skus)) {
             echo '<span class="alert alert-warning">' . 
                  __('Produktai su šiais SKU kodais neegzistuoja:', 'wc-discount-manager') . 
                  '<strong> ' . implode(', ', $skipped_skus) . '</strong></span>';
         }
 
+        if (!empty($result['errors'])) {
+            echo '<span class="alert alert-warning">' . 
+                 __('Some products had errors:', 'wc-discount-manager') . 
+                 '<br>' . implode('<br>', $result['errors']) . '</span>';
+        }
+
         if ($purge_cache && function_exists('flush_cloudflare_cache')) {
             flush_cloudflare_cache();
         }
         
-        echo '<span class="alert alert-success">' . __('Nuolaidos pritaikytos sėkmingai!', 'wc-discount-manager') . '</span>';
+        $success_msg = sprintf(
+            __('Nuolaidos pritaikytos sėkmingai! Processed %d products.', 'wc-discount-manager'),
+            $result['processed']
+        );
+        
+        // Add WPML info if active
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $success_msg .= ' ' . __('(Applied to all language versions)', 'wc-discount-manager');
+        }
+        
+        echo '<span class="alert alert-success">' . $success_msg . '</span>';
     }
 
     /**
@@ -91,6 +143,7 @@ class WCDM_Discounts_Add {
         $args = array(
             'post_type' => 'product',
             'posts_per_page' => -1,
+            'fields' => 'ids', // Only get IDs for better performance
             'tax_query' => array(
                 array(
                     'taxonomy' => 'product_cat',
@@ -101,27 +154,75 @@ class WCDM_Discounts_Add {
             ),
         );
         
-        $loop = new WP_Query($args);
-        while ($loop->have_posts()) : $loop->the_post();
-            global $product;
-            $product_id = $product->get_id();
-            if ($product_id) {
-                self::apply_discount_to_product($product_id, $discount, $start_date, $end_date, $skip_existing_discounts);
+        $query = new WP_Query($args);
+        $product_ids = $query->posts;
+        
+        if (empty($product_ids)) {
+            echo '<span class="alert alert-warning">' . 
+                 __('No products found in selected category.', 'wc-discount-manager') . '</span>';
+            return;
+        }
+
+        // Remove duplicates and get original language products for WPML
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $unique_ids = array();
+            foreach ($product_ids as $id) {
+                $original_id = WCDM_WPML_Helper::get_original_product_id($id);
+                $unique_ids[$original_id] = $original_id;
             }
-        endwhile;
-        wp_reset_query();
+            $product_ids = array_values($unique_ids);
+        }
+
+        // Show batch processing info
+        if (class_exists('WCDM_Batch_Processor')) {
+            echo WCDM_Batch_Processor::get_batch_info_message(count($product_ids));
+        }
+
+        // Process using batch processor
+        $params = array(
+            'discount' => $discount,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'skip_existing_discounts' => $skip_existing_discounts
+        );
+
+        $result = WCDM_Batch_Processor::process_batch($product_ids, 'apply_discount', $params);
+
+        if (!empty($result['errors'])) {
+            echo '<span class="alert alert-warning">' . 
+                 __('Some products had errors:', 'wc-discount-manager') . 
+                 '<br>' . implode('<br>', $result['errors']) . '</span>';
+        }
 
         if ($purge_cache && function_exists('flush_cloudflare_cache')) {
             flush_cloudflare_cache();
         }
         
-        echo '<span class="alert alert-success">' . __('Nuolaidos pritaikytos sėkmingai!', 'wc-discount-manager') . '</span>';
+        $success_msg = sprintf(
+            __('Nuolaidos pritaikytos sėkmingai! Processed %d products.', 'wc-discount-manager'),
+            $result['processed']
+        );
+        
+        // Add WPML info if active
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $success_msg .= ' ' . __('(Applied to all language versions)', 'wc-discount-manager');
+        }
+        
+        echo '<span class="alert alert-success">' . $success_msg . '</span>';
     }
 
     /**
      * Render the form
      */
     private static function render_form() {
+        // Show WPML status if active
+        if (class_exists('WCDM_WPML_Helper')) {
+            $wpml_message = WCDM_WPML_Helper::get_status_message();
+            if (!empty($wpml_message)) {
+                echo '<div class="notice notice-info"><p><strong>' . $wpml_message . '</strong></p></div>';
+            }
+        }
+
         echo '<form class="cform" method="post" enctype="multipart/form-data">';
         wp_nonce_field('wcdm_add_discount', 'wcdm_nonce');
         
