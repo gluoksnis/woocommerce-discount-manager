@@ -31,7 +31,7 @@ A powerful WordPress plugin for managing WooCommerce product discounts via CSV u
 
 ### Manual Installation
 
-1. Clone this repository: `git clone https://github.com/yourusername/woocommerce-discount-manager.git`
+1. Clone this repository: `git clone https://github.com/gluoksnis/woocommerce-discount-manager.git`
 2. Upload to `/wp-content/plugins/`
 3. Activate in WordPress
 
@@ -143,7 +143,7 @@ The plugin is translation-ready with the text domain `wc-discount-manager`. Lith
 ## Support
 
 For issues, questions, or contributions, please visit:
-- GitHub Issues: [https://github.com/yourusername/woocommerce-discount-manager/issues](https://github.com/yourusername/woocommerce-discount-manager/issues)
+- GitHub Issues: [https://github.com/yourusername/woocommerce-discount-manager/issues](https://github.com/gluoksnis/woocommerce-discount-manager/issues)
 
 ## Changelog
 
