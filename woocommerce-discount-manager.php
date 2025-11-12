@@ -100,6 +100,7 @@ class WC_Discount_Manager {
     private function init_hooks() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('before_woocommerce_init', array($this, 'declare_hpos_compatibility'));
     }
 
     /**

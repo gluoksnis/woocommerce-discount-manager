@@ -1,0 +1,19 @@
+{
+    "name": "vytautasgluoksnis/woocommerce-discount-manager",
+    "description": "A powerful WordPress plugin for managing WooCommerce product discounts via CSV upload or category selection, with bulk operations support.",
+    "type": "wordpress-plugin",
+    "require": {
+        "php-stubs/woocommerce-stubs": "^10.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vytautasgluoksnis\\WoocommerceDiscountManager\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Vytautas Gluoksnis",
+            "email": "53569775+gluoksnis@users.noreply.github.com"
+        }
+    ]
+}
