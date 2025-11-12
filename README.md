@@ -143,7 +143,7 @@ The plugin is translation-ready with the text domain `wc-discount-manager`. Lith
 ## Support
 
 For issues, questions, or contributions, please visit:
-- GitHub Issues: [https://github.com/yourusername/woocommerce-discount-manager/issues](https://github.com/gluoksnis/woocommerce-discount-manager/issues)
+- GitHub Issues: [https://github.com/gluoksnis/woocommerce-discount-manager/issues](https://github.com/gluoksnis/woocommerce-discount-manager/issues)
 
 ## Changelog
 
@@ -159,16 +159,3 @@ For issues, questions, or contributions, please visit:
 ## License
 
 GPL v2 or later - [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html)
-
-## Credits
-
-Developed for managing WooCommerce discounts efficiently across large product catalogs.
-
-## Screenshots
-
-_(Add screenshots here when available)_
-
-1. Main discount management page
-2. Products with discounts list view
-3. Delete discounts interface
-4. SKU tag assignment page
