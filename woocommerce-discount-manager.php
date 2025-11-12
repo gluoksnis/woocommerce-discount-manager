@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Discount Manager
  * Plugin URI: https://github.com/gluoksnis/woocommerce-discount-manager
  * Description: Manage WooCommerce product discounts via CSV upload or category selection with bulk operations support
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Vytautas Gluoksnis, SOUR advertising
  * Author URI: https://sour.lt
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('WC_DISCOUNT_MANAGER_VERSION', '1.1.0');
+define('WC_DISCOUNT_MANAGER_VERSION', '1.2.0');
 define('WC_DISCOUNT_MANAGER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WC_DISCOUNT_MANAGER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WC_DISCOUNT_MANAGER_PLUGIN_FILE', __FILE__);
@@ -100,6 +100,19 @@ class WC_Discount_Manager {
     private function init_hooks() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+    }
+
+    /**
+     * Declare HPOS (High-Performance Order Storage) compatibility
+     */
+    public function declare_hpos_compatibility() {
+        if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
+            \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility(
+                'custom_order_tables',
+                WC_DISCOUNT_MANAGER_PLUGIN_FILE,
+                true
+            );
+        }
     }
 
     /**

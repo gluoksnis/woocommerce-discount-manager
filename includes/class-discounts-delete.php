@@ -50,7 +50,6 @@ class WCDM_Discounts_Delete {
      */
     private static function process_csv_clear() {
         $csv = array_map('str_getcsv', file($_FILES['csv_clear']['tmp_name']));
-        $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
 
         // Collect product IDs
         $product_ids = array();
@@ -86,9 +85,8 @@ class WCDM_Discounts_Delete {
         // Process using batch processor
         $result = WCDM_Batch_Processor::process_batch($product_ids, 'clear_discount');
 
-        if ($purge_cache && function_exists('flush_cloudflare_cache')) {
-            flush_cloudflare_cache();
-        }
+        // Auto-purge Cloudflare cache if available
+        self::maybe_purge_cloudflare_cache();
         
         $success_msg = sprintf(
             __('Discounts cleared for %d products!', 'wc-discount-manager'),
@@ -104,45 +102,64 @@ class WCDM_Discounts_Delete {
     }
 
     /**
-     * Process clear all
+     * Process clear all - Using WooCommerce API instead of direct SQL
+     * This ensures hooks fire for Typesense and other plugins
      */
     private static function process_clear_all() {
-        $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
-        
         global $wpdb;
-        $table_prefix = $wpdb->prefix;
-
-        // Restore the original price from '_regular_price' to '_price'
-        $wpdb->query("
-            UPDATE {$table_prefix}postmeta AS pm1
-            INNER JOIN {$table_prefix}postmeta AS pm2 ON pm1.post_id = pm2.post_id
-            SET pm2.meta_value = pm1.meta_value
-            WHERE pm1.meta_key = '_regular_price' AND pm2.meta_key = '_price'
+        
+        // Get all product IDs that have sale prices
+        $product_ids = $wpdb->get_col("
+            SELECT DISTINCT post_id 
+            FROM {$wpdb->postmeta}
+            WHERE meta_key = '_sale_price' 
+            AND meta_value != ''
         ");
 
-        // Clear specified meta keys excluding '_regular_price'
-        $meta_keys_to_clear = array('_nuolaida_pr', '_sale_price', '_sale_price_dates_from', '_sale_price_dates_to');
-        foreach ($meta_keys_to_clear as $meta_key) {
-            $wpdb->query($wpdb->prepare("
-                UPDATE {$table_prefix}postmeta
-                SET meta_value = ''
-                WHERE meta_key = %s
-            ", $meta_key));
+        if (empty($product_ids)) {
+            echo '<span class="alert alert-warning">' . 
+                 __('No products with discounts found.', 'wc-discount-manager') . '</span>';
+            return;
         }
 
-        if ($purge_cache && function_exists('flush_cloudflare_cache')) {
-            flush_cloudflare_cache();
+        // Remove duplicates and get original language products for WPML
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $unique_ids = array();
+            foreach ($product_ids as $id) {
+                $original_id = WCDM_WPML_Helper::get_original_product_id($id);
+                $unique_ids[$original_id] = $original_id;
+            }
+            $product_ids = array_values($unique_ids);
+        }
+
+        // Show batch processing info
+        if (class_exists('WCDM_Batch_Processor')) {
+            echo WCDM_Batch_Processor::get_batch_info_message(count($product_ids));
+        }
+
+        // Process using batch processor - this uses WooCommerce API
+        $result = WCDM_Batch_Processor::process_batch($product_ids, 'clear_discount');
+
+        // Auto-purge Cloudflare cache if available
+        self::maybe_purge_cloudflare_cache();
+        
+        $success_msg = sprintf(
+            __('All discounts cleared! Processed %d products and original prices restored.', 'wc-discount-manager'),
+            $result['processed']
+        );
+        
+        // Add WPML info if active
+        if (class_exists('WCDM_WPML_Helper') && WCDM_WPML_Helper::is_wpml_active()) {
+            $success_msg .= ' ' . __('(Cleared from all language versions)', 'wc-discount-manager');
         }
         
-        echo '<span class="alert alert-success">' . __('All discounts cleared and original prices restored!', 'wc-discount-manager') . '</span>';
+        echo '<span class="alert alert-success">' . $success_msg . '</span>';
     }
 
     /**
      * Process clear category
      */
     private static function process_clear_category() {
-        $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
-
         $args = array(
             'post_type' => 'product',
             'posts_per_page' => -1,
@@ -183,9 +200,8 @@ class WCDM_Discounts_Delete {
         // Process using batch processor
         $result = WCDM_Batch_Processor::process_batch($product_ids, 'clear_discount');
 
-        if ($purge_cache && function_exists('flush_cloudflare_cache')) {
-            flush_cloudflare_cache();
-        }
+        // Auto-purge Cloudflare cache if available
+        self::maybe_purge_cloudflare_cache();
         
         $success_msg = sprintf(
             __('Discounts cleared for %d products in selected category!', 'wc-discount-manager'),
@@ -224,12 +240,48 @@ class WCDM_Discounts_Delete {
         echo '<label for="clear_all"><input type="checkbox" id="clear_all" name="clear_all"> ' . 
              __('Ištrinti nuolaidas iš visų produktų', 'wc-discount-manager') . '</label><br>';
         
-        // Add a checkbox to purge Cloudflare cache
-        echo '<label for="purge_cloudflare"><input type="checkbox" id="purge_cloudflare" name="purge_cloudflare"> ' . 
-             __('Išvalyti Cloudflare cache', 'wc-discount-manager') . '</label><br>';
-        
         echo '<button class="btn btn-danger" type="submit">' . __('Atnaujinti kainas', 'wc-discount-manager') . '</button>';
         echo '</form>';
+    }
+
+    /**
+     * Maybe purge Cloudflare cache if plugin is available
+     * Safely checks for Cloudflare plugin and purge function
+     */
+    private static function maybe_purge_cloudflare_cache() {
+        // Check if function exists (from any Cloudflare plugin)
+        if (function_exists('flush_cloudflare_cache')) {
+            try {
+                flush_cloudflare_cache();
+            } catch (Exception $e) {
+                // Silently fail - don't break the discount operation
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: Cloudflare cache purge failed - ' . $e->getMessage());
+                }
+            }
+        }
+        
+        // Alternative: WP Cloudflare Super Page Cache plugin
+        if (function_exists('wp_cloudflare_purge_cache')) {
+            try {
+                wp_cloudflare_purge_cache();
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: WP Cloudflare cache purge failed - ' . $e->getMessage());
+                }
+            }
+        }
+        
+        // Alternative: Cloudflare plugin by Cloudflare
+        if (class_exists('CF\WordPress\Hooks')) {
+            try {
+                do_action('cloudflare_purge_everything');
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: Cloudflare action purge failed - ' . $e->getMessage());
+                }
+            }
+        }
     }
 
     /**

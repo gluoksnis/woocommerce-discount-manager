@@ -54,7 +54,6 @@ class WCDM_Discounts_Add {
         $start_date = sanitize_text_field($_POST['start_date']);
         $end_date = sanitize_text_field($_POST['end_date']);
         $skip_existing_discounts = isset($_POST['skip_discounted']) && $_POST['skip_discounted'] == 'on';
-        $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
         
         // Collect product IDs
         $product_ids = array();
@@ -113,9 +112,8 @@ class WCDM_Discounts_Add {
                  '<br>' . implode('<br>', $result['errors']) . '</span>';
         }
 
-        if ($purge_cache && function_exists('flush_cloudflare_cache')) {
-            flush_cloudflare_cache();
-        }
+        // Auto-purge Cloudflare cache if available
+        self::maybe_purge_cloudflare_cache();
         
         $success_msg = sprintf(
             __('Nuolaidos pritaikytos sėkmingai! Processed %d products.', 'wc-discount-manager'),
@@ -138,7 +136,6 @@ class WCDM_Discounts_Add {
         $start_date = sanitize_text_field($_POST['start_date']);
         $end_date = sanitize_text_field($_POST['end_date']);
         $skip_existing_discounts = isset($_POST['skip_discounted']) && $_POST['skip_discounted'] == 'on';
-        $purge_cache = isset($_POST['purge_cloudflare']) && $_POST['purge_cloudflare'] == 'on';
 
         $args = array(
             'post_type' => 'product',
@@ -194,9 +191,8 @@ class WCDM_Discounts_Add {
                  '<br>' . implode('<br>', $result['errors']) . '</span>';
         }
 
-        if ($purge_cache && function_exists('flush_cloudflare_cache')) {
-            flush_cloudflare_cache();
-        }
+        // Auto-purge Cloudflare cache if available
+        self::maybe_purge_cloudflare_cache();
         
         $success_msg = sprintf(
             __('Nuolaidos pritaikytos sėkmingai! Processed %d products.', 'wc-discount-manager'),
@@ -253,12 +249,48 @@ class WCDM_Discounts_Add {
         echo '<label for="skip_discounted"><input type="checkbox" id="skip_discounted" name="skip_discounted"> ' . 
              __('Praleisti produktus su jau taikyta nuolaida (galioja tik pasirinkus kategoriją)', 'wc-discount-manager') . '</label><br>';
         
-        // Add a checkbox to purge Cloudflare cache
-        echo '<label for="purge_cloudflare"><input type="checkbox" id="purge_cloudflare" name="purge_cloudflare"> ' . 
-             __('Išvalyti Cloudflare cache', 'wc-discount-manager') . '</label><br>';
-        
         echo '<button class="btn btn-primary" type="submit">' . __('Atnaujinti kainas', 'wc-discount-manager') . '</button>';
         echo '</form>';
+    }
+
+    /**
+     * Maybe purge Cloudflare cache if plugin is available
+     * Safely checks for Cloudflare plugin and purge function
+     */
+    private static function maybe_purge_cloudflare_cache() {
+        // Check if function exists (from any Cloudflare plugin)
+        if (function_exists('flush_cloudflare_cache')) {
+            try {
+                flush_cloudflare_cache();
+            } catch (Exception $e) {
+                // Silently fail - don't break the discount operation
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: Cloudflare cache purge failed - ' . $e->getMessage());
+                }
+            }
+        }
+        
+        // Alternative: WP Cloudflare Super Page Cache plugin
+        if (function_exists('wp_cloudflare_purge_cache')) {
+            try {
+                wp_cloudflare_purge_cache();
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: WP Cloudflare cache purge failed - ' . $e->getMessage());
+                }
+            }
+        }
+        
+        // Alternative: Cloudflare plugin by Cloudflare
+        if (class_exists('CF\WordPress\Hooks')) {
+            try {
+                do_action('cloudflare_purge_everything');
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('WCDM: Cloudflare action purge failed - ' . $e->getMessage());
+                }
+            }
+        }
     }
 
     /**

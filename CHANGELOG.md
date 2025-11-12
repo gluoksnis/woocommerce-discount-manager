@@ -5,7 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2024-11-12
+## [1.2.0] - 2025-11-12
+
+### Added
+- **HPOS Compatibility**: Declared compatibility with WooCommerce High-Performance Order Storage
+- **Automatic Cloudflare Purge**: Auto-purges cache if Cloudflare plugin detected (no checkbox needed)
+- **Multiple Cloudflare Plugin Support**: Works with various Cloudflare plugins automatically
+- **Typesense Integration**: Proper WooCommerce API usage triggers search index updates
+
+### Changed
+- **Removed Cloudflare Checkbox**: Now auto-detects and purges automatically
+- **WooCommerce API Usage**: All operations now use `$product->save()` instead of direct SQL
+- **Better Hook Integration**: Discount operations properly trigger WooCommerce hooks
+- **"Clear All" Improved**: Now uses batch processor with WooCommerce API instead of raw SQL queries
+
+### Fixed
+- **Typesense Reindexing**: Search results now update immediately when discounts change
+- **HPOS Warning**: Plugin no longer shows incompatibility warning with High-Performance Order Storage
+- **Hook Triggering**: Cache plugins, search plugins (Typesense), and other integrations now update correctly
+- **Product Save**: All discount operations properly trigger WordPress/WooCommerce save hooks
+
+### Technical Improvements
+- Added comprehensive error handling for Cloudflare purge operations
+- Multiple Cloudflare plugin detection (flush_cloudflare_cache, wp_cloudflare_purge_cache, cloudflare_purge_everything)
+- Silent failure for missing Cloudflare - doesn't break operations
+- Debug logging for troubleshooting (when WP_DEBUG enabled)
+
+## [1.1.0] - 2025-07-02
 
 ### Added
 - **WPML Support**: Full multilingual compatibility
@@ -35,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Large product sets (1000+) no longer cause timeouts
 - Category operations now deduplicate WPML translations
 
-## [1.0.0] - 2024-11-12
+## [1.0.0] - 2024-08-25
 
 ### Added
 - Initial release
